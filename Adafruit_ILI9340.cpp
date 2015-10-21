@@ -36,7 +36,7 @@
   #define SET_BIT(port, bitMask) *(port) |= (bitMask)
   #define CLEAR_BIT(port, bitMask) *(port) &= ~(bitMask)
 #endif
-#if defined(__arm__) && defined(CORE_TEENSY)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
   #define USE_SPI_LIBRARY
   #define SET_BIT(port, bitMask) digitalWrite(*(port), HIGH);
   #define CLEAR_BIT(port, bitMask) digitalWrite(*(port), LOW);
@@ -62,7 +62,7 @@ Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t rst) : Adafru
   _dc   = dc;
   _rst  = rst;
   hwSPI = true;
-  _mosi  = _sclk = 0;
+  _mosi  = _miso = _sclk = 0;
 }
 
 void Adafruit_ILI9340::spiwrite(uint8_t c) {
@@ -99,7 +99,7 @@ void Adafruit_ILI9340::spiwrite(uint8_t c) {
 void Adafruit_ILI9340::writecommand(uint8_t c) {
   CLEAR_BIT(dcport, dcpinmask);
   //digitalWrite(_dc, LOW);
-  CLEAR_BIT(clkport, clkpinmask);
+  //CLEAR_BIT(clkport, clkpinmask);
   //digitalWrite(_sclk, LOW);
   CLEAR_BIT(csport, cspinmask);
   //digitalWrite(_cs, LOW);
@@ -114,7 +114,7 @@ void Adafruit_ILI9340::writecommand(uint8_t c) {
 void Adafruit_ILI9340::writedata(uint8_t c) {
   SET_BIT(dcport,  dcpinmask);
   //digitalWrite(_dc, HIGH);
-  CLEAR_BIT(clkport, clkpinmask);
+  //CLEAR_BIT(clkport, clkpinmask);
   //digitalWrite(_sclk, LOW);
   CLEAR_BIT(csport, cspinmask);
   //digitalWrite(_cs, LOW);
@@ -171,7 +171,7 @@ void Adafruit_ILI9340::begin(void) {
   csport    = digitalPinToPort(_cs);
   dcport    = digitalPinToPort(_dc);
 #endif
-#if defined(__arm__) && defined(CORE_TEENSY)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
   mosiport = &_mosi;
   clkport = &_sclk;
   rsport = &_rst;
@@ -188,6 +188,9 @@ void Adafruit_ILI9340::begin(void) {
 #endif
 #if defined(__SAM3X8E__)
     SPI.setClockDivider(11); // 85MHz / 11 = 7.6 MHz (full! speed!)
+#endif
+#ifdef ESP8266
+    SPI.setFrequency(8000000);
 #endif
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
@@ -375,7 +378,6 @@ void Adafruit_ILI9340::pushColor(uint16_t color) {
 }
 
 void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
-
   if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
 
   setAddrWindow(x,y,x+1,y+1);
@@ -390,6 +392,16 @@ void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
   SET_BIT(csport, cspinmask);
   //digitalWrite(_cs, HIGH);
+
+#ifdef ESP8266
+  static uint32_t pixel_count;
+  // Must be power of 2
+  const uint32_t PIXELS_PER_YIELD = 1 << 14;
+
+  // To avoid watchdog reset, call yield() every PIXELS_PER_YIELD pixels.
+  pixel_count++;
+  if ((pixel_count & (PIXELS_PER_YIELD-1)) == 0) yield();
+#endif
 }
 
 
@@ -471,6 +483,9 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   }
   //digitalWrite(_cs, HIGH);
   SET_BIT(csport, cspinmask);
+#ifdef ESP8266
+  yield();
+#endif
 }
 
 
@@ -556,7 +571,7 @@ uint8_t Adafruit_ILI9340::spiread(void) {
 
  uint8_t Adafruit_ILI9340::readcommand8(uint8_t c) {
    digitalWrite(_dc, LOW);
-   digitalWrite(_sclk, LOW);
+   //digitalWrite(_sclk, LOW);
    digitalWrite(_cs, LOW);
    spiwrite(c);
  
