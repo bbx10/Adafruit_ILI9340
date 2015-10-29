@@ -375,23 +375,6 @@ void Adafruit_ILI9340::pushColor(uint16_t color) {
 
   SET_BIT(csport, cspinmask);
   //digitalWrite(_cs, HIGH);
-}
-
-void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
-  if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
-
-  setAddrWindow(x,y,x+1,y+1);
-
-  //digitalWrite(_dc, HIGH);
-  SET_BIT(dcport, dcpinmask);
-  //digitalWrite(_cs, LOW);
-  CLEAR_BIT(csport, cspinmask);
-
-  spiwrite(color >> 8);
-  spiwrite(color);
-
-  SET_BIT(csport, cspinmask);
-  //digitalWrite(_cs, HIGH);
 
 #ifdef ESP8266
   static uint32_t pixel_count;
@@ -402,6 +385,14 @@ void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
   pixel_count++;
   if ((pixel_count & (PIXELS_PER_YIELD-1)) == 0) yield();
 #endif
+}
+
+void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
+  if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
+
+  setAddrWindow(x,y,x+1,y+1);
+
+  pushColor(color);
 }
 
 

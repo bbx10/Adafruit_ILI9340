@@ -24,6 +24,12 @@
     #define F(string_literal) string_literal
 #endif
 
+#ifdef ESP8266
+#define TFT_RST 16
+#define TFT_DC  2
+#define TFT_CS  15
+#define SD_CS   4
+#else
 // TFT display and SD card will share the hardware SPI interface.
 // Hardware SPI pins are specific to the Arduino board type and
 // cannot be remapped to alternate pins.  For Arduino Uno,
@@ -32,11 +38,17 @@
 #define TFT_DC 9
 #define TFT_CS 10
 #define SD_CS 4
+#endif
 
 Adafruit_ILI9340 tft = Adafruit_ILI9340(TFT_CS, TFT_DC, TFT_RST);
 
 void setup(void) {
   Serial.begin(9600);
+
+#ifdef ESP8266
+  // Pin 5 controls the backlight.
+  analogWrite(5, 1023);
+#endif
 
   Serial.print("Initializing SD card...");
   if (!SD.begin(SD_CS)) {
